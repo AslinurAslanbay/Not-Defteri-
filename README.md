@@ -2,7 +2,6 @@
 
 C# ASP.NET Core MVC not defteri uygulamasıdır. Tüm veriler JSON formatında saklanır.
 
-![Not Defteri Ekran Görüntüsü](wwwroot/img/screenshot.png)
 
 ## Özellikler
 
@@ -34,4 +33,5 @@ C# ASP.NET Core MVC not defteri uygulamasıdır. Tüm veriler JSON formatında s
 *   **Views/**: Kullanıcı arayüzünü oluşturan `.cshtml` dosyaları.
 *   **wwwroot/**: CSS, JavaScript ve resim gibi statik dosyalar.
 
+![alt text](image.png)
 
