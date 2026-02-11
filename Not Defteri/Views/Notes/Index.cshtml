@@ -1,0 +1,104 @@
+@using NotDefteriMvc.Models
+@model List<Note>
+
+@{
+    ViewData["Title"] = "Not Listesi";
+    bool selectMode = ViewBag.SelectMode ?? false;
+}
+
+<h2>Not Listesi</h2>
+
+<div style="margin-bottom: 15px;">
+    <!-- Yeni Not Ekle butonu -->
+    <a asp-controller="Notes" asp-action="Create" class="btn btn-primary">Yeni Not Ekle</a>
+
+    @if (!selectMode)
+    {
+        <!-- Seç moduna geçiren buton -->
+        <a asp-controller="Notes" asp-action="Index" asp-route-selectMode="true" class="btn btn-secondary"
+            style="margin-left:10px;">Seç</a>
+    }
+    else
+    {
+        <!-- Seç modundan çıkış -->
+        <a asp-controller="Notes" asp-action="Index" asp-route-selectMode="false" class="btn btn-light"
+            style="margin-left:10px;">Seçimi İptal Et</a>
+    }
+</div>
+
+@if (Model == null || !Model.Any())
+{
+    <p>Henüz hiç not yok.</p>
+}
+else
+{
+    if (selectMode)
+    {
+        <form asp-action="DeleteSelected" method="post">
+            @Html.AntiForgeryToken()
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Başlık</th>
+                        <th>Açıklama</th>
+                        <th>Oluşturulma Tarihi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var note in Model)
+                    {
+                        var words = (note.Description ?? "")
+                        .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        var first10 = string.Join(" ", words.Take(10));
+                        if (words.Length > 10)
+                        {
+                            first10 += "...";
+                        }
+
+                        <tr>
+                            <td>
+                                <input type="checkbox" name="selectedNoteIds" value="@note.Id" />
+                            </td>
+                            <td>@note.Title</td>
+                            <td>@first10</td>
+                            <td>@note.CreatedDate.ToString("g")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <button type="submit" class="btn btn-danger">Sil</button>
+        </form>
+    }
+    else
+    {
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Başlık</th>
+                    <th>Açıklama (ilk 10 kelime)</th>
+                    <th>Oluşturulma Tarihi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var note in Model)
+                {
+                    var words = (note.Description ?? "")
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var first10 = string.Join(" ", words.Take(10));
+                    if (words.Length > 10)
+                    {
+                        first10 += "...";
+                    }
+
+                    <tr style="cursor:pointer;" onclick="window.location='@Url.Action("Edit", "Notes", new { id = note.Id })'">
+                        <td>@note.Title</td>
+                        <td>@first10</td>
+                        <td>@note.CreatedDate.ToString("g")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
