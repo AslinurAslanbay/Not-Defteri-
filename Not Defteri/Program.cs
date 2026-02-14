@@ -11,8 +11,8 @@ builder.Services.AddControllersWithViews();
 // IHostEnvironment'i açıkça kaydet
 builder.Services.AddSingleton<IHostEnvironment>(builder.Environment);
 
-// INoteRepository isteyen her yere JsonNoteRepository verilecek.
-builder.Services.AddSingleton<INoteRepository, JsonNoteRepository>();
+// INoteRepository isteyen her yere FirebaseNoteRepository verilecek (veri Firebase Firestore'da).
+builder.Services.AddSingleton<INoteRepository, FirebaseNoteRepository>();
 
 var app = builder.Build();
 
