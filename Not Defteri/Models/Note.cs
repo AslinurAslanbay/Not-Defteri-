@@ -9,6 +9,9 @@ namespace NotDefteriMvc.Models
         public string? Description { get; set; }
 
         public DateTime CreatedDate { get; set; }
+
+        // Favori notlar için bayrak
+        public bool IsFavorite { get; set; } = false;
     }
 }
 

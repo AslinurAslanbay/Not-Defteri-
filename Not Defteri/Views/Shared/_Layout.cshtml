@@ -24,6 +24,10 @@
                 asp-controller="Notes" asp-action="Index">
                 <i class="fas fa-sticky-note me-2"></i> Notlarım
             </a>
+            <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Favorites" ? "active" : "")"
+               asp-controller="Notes" asp-action="Favorites">
+                <i class="fas fa-star me-2"></i> Favori Notlarım
+            </a>
             <a class="nav-link @(ViewContext.RouteData.Values["Action"]?.ToString() == "Create" ? "active" : "")"
                 asp-controller="Notes" asp-action="Create">
                 <i class="fas fa-plus me-2"></i> Yeni Not
