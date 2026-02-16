@@ -86,9 +86,10 @@ namespace NotDefteriMvc.Services
             if (existing == null)
                 return;
 
-            // Sadece Title ve Description güncelleniyor, CreatedDate aynen kalabilir
+            // Sadece Title, Description ve IsFavorite güncelleniyor, CreatedDate aynen kalabilir
             existing.Title = note.Title;
             existing.Description = note.Description;
+            existing.IsFavorite = note.IsFavorite;
 
             WriteAllToFile(notes);
         }

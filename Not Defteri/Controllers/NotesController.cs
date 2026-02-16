@@ -21,13 +21,38 @@ namespace NotDefteriMvc.Controllers
         // GET: /Notes/Index veya sadece /
         // Not listesini gösteren ana sayfa.
         // selectMode parametresi, seçim/silme modunda olup olmadığımızı belirler.
+        // search parametresi, başlık ve açıklamada arama yapmak için kullanılır.
         [HttpGet]
-        public IActionResult Index(bool selectMode = false)
+        public IActionResult Index(bool selectMode = false, string? search = null, DateTime? startDate = null, DateTime? endDate = null)
         {
             var notes = _noteRepository.GetAll();
 
+            // Arama filtresi uygula
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                notes = notes.Where(n =>
+                    (n.Title?.ToLower().Contains(searchLower) ?? false) ||
+                    (n.Description?.ToLower().Contains(searchLower) ?? false)
+                ).ToList();
+            }
+
+            // Tarih filtresi uygula
+            if (startDate.HasValue)
+            {
+                notes = notes.Where(n => n.CreatedDate.Date >= startDate.Value.Date).ToList();
+            }
+
+            if (endDate.HasValue)
+            {
+                notes = notes.Where(n => n.CreatedDate.Date <= endDate.Value.Date).ToList();
+            }
+
             // ViewBag ile View'a ek veriler gönderebiliriz.
             ViewBag.SelectMode = selectMode;
+            ViewBag.SearchQuery = search;
+            ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
+            ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
 
             return View(notes);
         }
@@ -83,6 +108,55 @@ namespace NotDefteriMvc.Controllers
 
             _noteRepository.Update(note);
             return RedirectToAction(nameof(Index));
+        }
+        // GET: /Notes/View/5
+        // Belirli bir notu sadece görüntülemek için sayfayı gösterir.
+        [HttpGet]
+        public IActionResult View(int id)
+        {
+            var note = _noteRepository.GetById(id);
+            if (note == null)
+            {
+                return NotFound();
+            }
+
+            return View(note);
+        }
+
+        // POST: /Notes/ToggleFavorite
+        // Bir notun favori durumunu aç/kapa yapar.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult ToggleFavorite(int id, bool returnToFavorites = false)
+        {
+            var note = _noteRepository.GetById(id);
+            if (note == null)
+            {
+                return NotFound();
+            }
+
+            note.IsFavorite = !note.IsFavorite;
+            _noteRepository.Update(note);
+
+            if (returnToFavorites)
+            {
+                return RedirectToAction(nameof(Favorites));
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        // GET: /Notes/Favorites
+        // Sadece favori notları listeleyen sayfa.
+        [HttpGet]
+        public IActionResult Favorites()
+        {
+            var notes = _noteRepository
+                .GetAll()
+                .Where(n => n.IsFavorite)
+                .ToList();
+
+            return View(notes);
         }
 
         // POST: /Notes/DeleteSelected

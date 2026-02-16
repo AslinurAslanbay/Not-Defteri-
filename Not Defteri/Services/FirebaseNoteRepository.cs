@@ -37,13 +37,17 @@ namespace NotDefteriMvc.Services
             var description = snapshot.GetValue<string>("Description");
             var createdValue = snapshot.GetValue<Timestamp>("CreatedDate");
             var createdDate = createdValue.ToDateTime();
+            var isFavorite = snapshot.ContainsField("IsFavorite")
+                ? snapshot.GetValue<bool>("IsFavorite")
+                : false;
 
             return new Note
             {
                 Id = id,
                 Title = title,
                 Description = description,
-                CreatedDate = createdDate
+                CreatedDate = createdDate,
+                IsFavorite = isFavorite
             };
         }
 
@@ -53,7 +57,8 @@ namespace NotDefteriMvc.Services
             {
                 ["Title"] = note.Title ?? string.Empty,
                 ["Description"] = note.Description ?? string.Empty,
-                ["CreatedDate"] = Timestamp.FromDateTime(DateTime.SpecifyKind(note.CreatedDate, DateTimeKind.Utc))
+                ["CreatedDate"] = Timestamp.FromDateTime(DateTime.SpecifyKind(note.CreatedDate, DateTimeKind.Utc)),
+                ["IsFavorite"] = note.IsFavorite
             };
         }
 
@@ -97,6 +102,7 @@ namespace NotDefteriMvc.Services
             var existing = SnapshotToNote(snapshot);
             existing.Title = note.Title;
             existing.Description = note.Description;
+            existing.IsFavorite = note.IsFavorite;
             var data = NoteToFirestoreData(existing);
             docRef.SetAsync(data).GetAwaiter().GetResult();
         }

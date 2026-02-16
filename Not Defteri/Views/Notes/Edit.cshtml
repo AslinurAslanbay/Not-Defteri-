@@ -27,7 +27,36 @@
         <strong>Oluşturulma:</strong> @Model.CreatedDate.ToString("g")
     </p>
 
+    <div class="mb-3">
+        <input class="form-check-input" asp-for="IsFavorite" type="checkbox" id="IsFavorite" style="display:none;" />
+        <label class="form-check-label user-select-none" for="IsFavorite" style="cursor: pointer; font-size: 1.2rem;">
+            <i class="far fa-star" id="favIcon"></i> Favorilere Ekle
+        </label>
+        <span asp-validation-for="IsFavorite" class="text-danger"></span>
+    </div>
+
     <button type="submit" class="btn btn-primary">Kaydet</button>
     <a asp-action="Index" class="btn btn-secondary">Geri Dön</a>
 </form>
 
+@section Scripts {
+    <script>
+        const checkbox = document.getElementById('IsFavorite');
+        const icon = document.getElementById('favIcon');
+
+        function updateIcon() {
+            if (checkbox.checked) {
+                icon.classList.remove('far');
+                icon.classList.add('fas', 'text-warning');
+            } else {
+                icon.classList.remove('fas', 'text-warning');
+                icon.classList.add('far');
+            }
+        }
+
+        checkbox.addEventListener('change', updateIcon);
+
+        // Init
+        updateIcon();
+    </script>
+}
