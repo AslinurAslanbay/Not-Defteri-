@@ -1,0 +1,48 @@
+@model NotDefteriMvc.ViewModels.LoginViewModel
+
+@{
+    ViewData["Title"] = "Giris Yap";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="mb-3">Giris Yap</h2>
+
+                @if (TempData["AuthMessage"] is string authMessage)
+                {
+                    <div class="alert alert-warning">@authMessage</div>
+                }
+
+                <form asp-action="Login" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="UserName" class="form-label">Kullanici Adi</label>
+                        <input asp-for="UserName" class="form-control" />
+                        <span asp-validation-for="UserName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label">Sifre</label>
+                        <input asp-for="Password" class="form-control" />
+                        <span asp-validation-for="Password" class="text-danger"></span>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Giris Yap</button>
+                </form>
+
+                <p class="mt-3 mb-0 text-center">
+                    <a asp-action="ForgotPassword">Sifremi Unuttum</a>
+                </p>
+
+                <p class="mt-3 mb-0 text-center">
+                    Hesabin yok mu?
+                    <a asp-action="Register">Kayit Ol</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>

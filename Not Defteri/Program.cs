@@ -1,20 +1,35 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NotDefteriMvc.Data;
 using NotDefteriMvc.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// MVC (Controller + View) için servis kaydı
 builder.Services.AddControllersWithViews();
+builder.Services.AddSession();
 
-// IHostEnvironment'i açıkça kaydet
-builder.Services.AddSingleton<IHostEnvironment>(builder.Environment);
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Auth/Login";
+        options.AccessDeniedPath = "/Auth/Login";
+    });
 
-// INoteRepository isteyen her yere FirebaseNoteRepository verilecek (veri Firebase Firestore'da).
-builder.Services.AddSingleton<INoteRepository, FirebaseNoteRepository>();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<INoteRepository, SqlNoteRepository>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate();
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -26,17 +41,12 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
+app.UseSession();
+app.UseAuthentication();
 app.UseAuthorization();
 
-// Varsayılan route: /Notes/Index
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Notes}/{action=Index}/{id?}");
 
-Console.WriteLine("Web uygulaması başlatılıyor...");
-Console.WriteLine("http://localhost:5000 adresine gidin");
-
 app.Run();
-
- 
