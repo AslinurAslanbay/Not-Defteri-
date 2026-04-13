@@ -1,43 +1,56 @@
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NotDefteriMvc.Models;
 using NotDefteriMvc.Services;
-using System.Collections.Generic;
-using System.Linq;
+using NotDefteriMvc.ViewModels;
 
 namespace NotDefteriMvc.Controllers
 {
-    // CONTROLLER (C): HTTP isteklerini karşılar, Model'den veriyi alır,
-    // uygun View'a (V) gönderir.
     public class NotesController : Controller
     {
+        public const string DraftSessionKey = "PendingNoteDraft";
+
         private readonly INoteRepository _noteRepository;
 
-        // DI (Dependency Injection) ile INoteRepository örneği alıyoruz.
         public NotesController(INoteRepository noteRepository)
         {
             _noteRepository = noteRepository;
         }
 
-        // GET: /Notes/Index veya sadece /
-        // Not listesini gösteren ana sayfa.
-        // selectMode parametresi, seçim/silme modunda olup olmadığımızı belirler.
-        // search parametresi, başlık ve açıklamada arama yapmak için kullanılır.
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Index(bool selectMode = false, string? search = null, DateTime? startDate = null, DateTime? endDate = null)
         {
-            var notes = _noteRepository.GetAll();
+            var model = new NotesIndexViewModel
+            {
+                IsAuthenticated = User.Identity?.IsAuthenticated == true,
+                SelectMode = selectMode,
+                SearchQuery = search,
+                StartDate = startDate?.ToString("yyyy-MM-dd"),
+                EndDate = endDate?.ToString("yyyy-MM-dd"),
+                CurrentUserId = GetCurrentUserId(),
+                CurrentUserName = User.Identity?.Name
+            };
 
-            // Arama filtresi uygula
+            if (!model.IsAuthenticated || model.CurrentUserId == null)
+            {
+                model.Draft = LoadDraft();
+                return View(model);
+            }
+
+            var notes = _noteRepository.GetAll(model.CurrentUserId.Value);
+
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var searchLower = search.ToLower();
                 notes = notes.Where(n =>
                     (n.Title?.ToLower().Contains(searchLower) ?? false) ||
-                    (n.Description?.ToLower().Contains(searchLower) ?? false)
-                ).ToList();
+                    (n.Description?.ToLower().Contains(searchLower) ?? false))
+                    .ToList();
             }
 
-            // Tarih filtresi uygula
             if (startDate.HasValue)
             {
                 notes = notes.Where(n => n.CreatedDate.Date >= startDate.Value.Date).ToList();
@@ -48,46 +61,74 @@ namespace NotDefteriMvc.Controllers
                 notes = notes.Where(n => n.CreatedDate.Date <= endDate.Value.Date).ToList();
             }
 
-            // ViewBag ile View'a ek veriler gönderebiliriz.
-            ViewBag.SelectMode = selectMode;
-            ViewBag.SearchQuery = search;
-            ViewBag.StartDate = startDate?.ToString("yyyy-MM-dd");
-            ViewBag.EndDate = endDate?.ToString("yyyy-MM-dd");
-
-            return View(notes);
+            model.Notes = notes;
+            return View(model);
         }
 
-        // GET: /Notes/Create
-        // Yeni not ekleme formunu gösterir.
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Create()
         {
-            return View();
-        }
-
-        // POST: /Notes/Create
-        // Form submit edildiğinde çağrılır.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public IActionResult Create(Note note)
-        {
-            if (!ModelState.IsValid)
+            var note = new Note();
+            var draft = LoadDraft();
+            if (!string.IsNullOrWhiteSpace(draft.Title) || !string.IsNullOrWhiteSpace(draft.Description))
             {
-                return View(note);
+                note.Title = draft.Title;
+                note.Description = draft.Description;
+                ClearDraft();
             }
 
-            _noteRepository.Add(note);
+            return View(note);
+        }
 
-            // Kayıttan sonra liste sayfasına dön
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public IActionResult Create(NoteDraft draft)
+        {
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                SaveDraft(draft);
+                TempData["AuthMessage"] = "Notu kaydetmek icin once giris yapmaniz veya kayit olmaniz gerekiyor.";
+                return RedirectToAction("Login", "Auth");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return View(new Note
+                {
+                    Title = draft.Title,
+                    Description = draft.Description
+                });
+            }
+
+            var userId = GetCurrentUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            _noteRepository.Add(new Note
+            {
+                Title = draft.Title.Trim(),
+                Description = draft.Description,
+                UserId = userId.Value
+            });
+
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: /Notes/Edit/5
-        // Belirli bir notu düzenleme formunu gösterir.
         [HttpGet]
+        [Authorize]
         public IActionResult Edit(int id)
         {
-            var note = _noteRepository.GetById(id);
+            var userId = GetRequiredUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var note = _noteRepository.GetById(id, userId.Value);
             if (note == null)
             {
                 return NotFound();
@@ -96,8 +137,8 @@ namespace NotDefteriMvc.Controllers
             return View(note);
         }
 
-        // POST: /Notes/Edit/5
         [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public IActionResult Edit(Note note)
         {
@@ -106,15 +147,28 @@ namespace NotDefteriMvc.Controllers
                 return View(note);
             }
 
+            var userId = GetRequiredUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            note.UserId = userId.Value;
             _noteRepository.Update(note);
             return RedirectToAction(nameof(Index));
         }
-        // GET: /Notes/View/5
-        // Belirli bir notu sadece görüntülemek için sayfayı gösterir.
+
         [HttpGet]
+        [Authorize]
         public IActionResult View(int id)
         {
-            var note = _noteRepository.GetById(id);
+            var userId = GetRequiredUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var note = _noteRepository.GetById(id, userId.Value);
             if (note == null)
             {
                 return NotFound();
@@ -123,13 +177,18 @@ namespace NotDefteriMvc.Controllers
             return View(note);
         }
 
-        // POST: /Notes/ToggleFavorite
-        // Bir notun favori durumunu aç/kapa yapar.
         [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public IActionResult ToggleFavorite(int id, bool returnToFavorites = false)
         {
-            var note = _noteRepository.GetById(id);
+            var userId = GetRequiredUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            var note = _noteRepository.GetById(id, userId.Value);
             if (note == null)
             {
                 return NotFound();
@@ -146,32 +205,74 @@ namespace NotDefteriMvc.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-        // GET: /Notes/Favorites
-        // Sadece favori notları listeleyen sayfa.
         [HttpGet]
+        [Authorize]
         public IActionResult Favorites()
         {
+            var userId = GetRequiredUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             var notes = _noteRepository
-                .GetAll()
+                .GetAll(userId.Value)
                 .Where(n => n.IsFavorite)
                 .ToList();
 
             return View(notes);
         }
 
-        // POST: /Notes/DeleteSelected
-        // Checkbox ile seçilen Id'leri alıp siler.
         [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public IActionResult DeleteSelected(List<int> selectedNoteIds)
         {
+            var userId = GetRequiredUserId();
+            if (userId == null)
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
             if (selectedNoteIds != null && selectedNoteIds.Any())
             {
-                _noteRepository.DeleteMany(selectedNoteIds);
+                _noteRepository.DeleteMany(selectedNoteIds, userId.Value);
             }
 
             return RedirectToAction(nameof(Index));
         }
+
+        private int? GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return int.TryParse(userIdClaim, out var userId) ? userId : null;
+        }
+
+        private int? GetRequiredUserId()
+        {
+            return User.Identity?.IsAuthenticated == true ? GetCurrentUserId() : null;
+        }
+
+        private void SaveDraft(NoteDraft draft)
+        {
+            var serializedDraft = JsonSerializer.Serialize(draft);
+            HttpContext.Session.SetString(DraftSessionKey, serializedDraft);
+        }
+
+        private NoteDraft LoadDraft()
+        {
+            var serializedDraft = HttpContext.Session.GetString(DraftSessionKey);
+            if (string.IsNullOrWhiteSpace(serializedDraft))
+            {
+                return new NoteDraft();
+            }
+
+            return JsonSerializer.Deserialize<NoteDraft>(serializedDraft) ?? new NoteDraft();
+        }
+
+        private void ClearDraft()
+        {
+            HttpContext.Session.Remove(DraftSessionKey);
+        }
     }
 }
-

@@ -1,80 +1,92 @@
 @using NotDefteriMvc.Models
-@model List<Note>
+@using NotDefteriMvc.ViewModels
+@model NotesIndexViewModel
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 @{
     ViewData["Title"] = "Not Listesi";
-    bool selectMode = ViewBag.SelectMode ?? false;
+    bool selectMode = Model.SelectMode;
 }
 
-<h2>Not Listesi</h2>
-
-<div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-    <div>
-        <!-- Yeni Not Ekle butonu -->
-        <a asp-controller="Notes" asp-action="Create" class="btn btn-primary">Yeni Not Ekle</a>
-
-        @if (!selectMode)
-        {
-            <!-- Seç moduna geçiren buton -->
-            <a asp-controller="Notes" asp-action="Index" asp-route-selectMode="true" class="btn btn-secondary"
-                style="margin-left:10px;">Seç</a>
-        }
-        else
-        {
-            <!-- Seç modundan çıkış -->
-            <a asp-controller="Notes" asp-action="Index" asp-route-selectMode="false" class="btn btn-light"
-                style="margin-left:10px;">Seçimi İptal Et</a>
-        }
-    </div>
-    
-    <!-- Arama kutusu ve butonu -->
-    <div style="display: flex; gap: 5px;">
-        <form asp-action="Index" method="get" id="filterForm" style="display: flex; gap: 5px; align-items: center;">
-            <input type="hidden" name="selectMode" value="@selectMode" />
-            
-            <!-- Tarih Filtreleri -->
-            <input type="hidden" name="startDate" id="startDate" value="@ViewBag.StartDate" />
-            <input type="hidden" name="endDate" id="endDate" value="@ViewBag.EndDate" />
-            
-            <!-- Flatpickr için gizli input (Trigger) -->
-            <input type="text" id="flatpickr-hidden" style="display:none;" />
-
-            <input type="text" name="search" value="@ViewBag.SearchQuery" placeholder="Başlık veya açıklamada ara..." 
-                   class="form-control" style="width: 250px;" />
-            <button type="submit" class="btn btn-primary">Ara</button>
-            
-            <!-- Tarih Seçici Buton -->
-            <button type="button" id="datePickerBtn" class="btn btn-primary" title="Tarihe göre filtrele">
-                <i class="far fa-calendar-alt"></i>
-            </button>
-
-            @if (!string.IsNullOrEmpty(ViewBag.SearchQuery as string) || !string.IsNullOrEmpty(ViewBag.StartDate as string))
-            {
-                <a asp-action="Index" asp-route-selectMode="@selectMode" class="btn btn-outline-danger" title="Filtreleri Temizle">
-                    <i class="fas fa-times"></i>
-                </a>
-            }
-        </form>
-    </div>
-</div>
-
-@if (Model == null || !Model.Any())
+@if (TempData["SuccessMessage"] is string successMessage)
 {
-    <p>Henüz hiç not yok.</p>
+    <div class="alert alert-success">@successMessage</div>
+}
+
+@if (!Model.IsAuthenticated)
+{
+    <h2>Not Listesi</h2>
+
+    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <a asp-controller="Notes" asp-action="Create" class="btn btn-primary">Yeni Not Ekle</a>
+            <button type="button" class="btn btn-secondary" style="margin-left:10px;" disabled>Sec</button>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <input type="text" class="form-control" style="width: 250px;" placeholder="Baslik veya aciklamada ara..." disabled />
+            <button type="button" class="btn btn-secondary" disabled>Ara</button>
+        </div>
+    </div>
+
+    <p class="text-muted">Giris yapmadan once notlar gorunmez.</p>
 }
 else
 {
-    if (selectMode)
+    <h2>Notlarim</h2>
+    <p class="text-muted">Kullanici: <strong>@Model.CurrentUserName</strong> | Kullanici No: <strong>@Model.CurrentUserId</strong></p>
+
+    <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <a asp-controller="Notes" asp-action="Create" class="btn btn-primary">Yeni Not Ekle</a>
+
+            @if (!selectMode)
+            {
+                <a asp-controller="Notes" asp-action="Index" asp-route-selectMode="true" class="btn btn-secondary" style="margin-left:10px;">Sec</a>
+            }
+            else
+            {
+                <a asp-controller="Notes" asp-action="Index" asp-route-selectMode="false" class="btn btn-light" style="margin-left:10px;">Secimi Iptal Et</a>
+            }
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <form asp-action="Index" method="get" id="filterForm" style="display: flex; gap: 5px; align-items: center;">
+                <input type="hidden" name="selectMode" value="@selectMode" />
+                <input type="hidden" name="startDate" id="startDate" value="@Model.StartDate" />
+                <input type="hidden" name="endDate" id="endDate" value="@Model.EndDate" />
+                <input type="text" id="flatpickr-hidden" style="display:none;" />
+
+                <input type="text" name="search" value="@Model.SearchQuery" placeholder="Baslik veya aciklamada ara..." class="form-control" style="width: 250px;" />
+                <button type="submit" class="btn btn-primary">Ara</button>
+
+                <button type="button" id="datePickerBtn" class="btn btn-primary" title="Tarihe gore filtrele">
+                    <i class="far fa-calendar-alt"></i>
+                </button>
+
+                @if (!string.IsNullOrEmpty(Model.SearchQuery) || !string.IsNullOrEmpty(Model.StartDate))
+                {
+                    <a asp-action="Index" asp-route-selectMode="@selectMode" class="btn btn-outline-danger" title="Filtreleri Temizle">
+                        <i class="fas fa-times"></i>
+                    </a>
+                }
+            </form>
+        </div>
+    </div>
+
+    @if (Model.Notes == null || !Model.Notes.Any())
+    {
+        <p>Bu hesaba ait henuz hic not yok.</p>
+    }
+    else if (selectMode)
     {
         <form asp-action="DeleteSelected" method="post">
             @Html.AntiForgeryToken()
 
             <div class="row">
-                @foreach (var note in Model)
+                @foreach (var note in Model.Notes)
                 {
-                    var words = (note.Description ?? "")
-                        .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    var words = (note.Description ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     var first10 = string.Join(" ", words.Take(10));
                     if (words.Length > 10)
                     {
@@ -86,21 +98,20 @@ else
                             <div class="card-body d-flex flex-column">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" name="selectedNoteIds"
-                                               value="@note.Id" id="note_@note.Id" />
+                                        <input class="form-check-input" type="checkbox" name="selectedNoteIds" value="@note.Id" id="note_@note.Id" />
                                         <label class="form-check-label" for="note_@note.Id">
                                             @note.Title
                                         </label>
                                     </div>
-                                    <form asp-action="ToggleFavorite" method="post" class="ms-2">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@note.Id" />
-                                        <button type="submit" class="btn btn-link p-0 border-0"
-                                                title="Favorilere ekle/kaldır"
-                                                onclick="event.stopPropagation();">
-                                            <i class="@(note.IsFavorite ? "fas" : "far") fa-star text-warning"></i>
-                                        </button>
-                                    </form>
+                                    <button type="submit"
+                                            class="btn btn-link p-0 border-0 ms-2"
+                                            title="Favorilere ekle veya kaldir"
+                                            formaction="@Url.Action("ToggleFavorite", "Notes")"
+                                            formmethod="post"
+                                            name="id"
+                                            value="@note.Id">
+                                        <i class="@(note.IsFavorite ? "fas" : "far") fa-star text-warning"></i>
+                                    </button>
                                 </div>
                                 <p class="card-text text-muted" style="flex:1;">@first10</p>
                                 <small class="text-muted">@note.CreatedDate.ToString("g")</small>
@@ -110,16 +121,15 @@ else
                 }
             </div>
 
-            <button type="submit" class="btn btn-danger mt-2">Seçilenleri Sil</button>
+            <button type="submit" class="btn btn-danger mt-2">Secilenleri Sil</button>
         </form>
     }
     else
     {
         <div class="row">
-            @foreach (var note in Model)
+            @foreach (var note in Model.Notes)
             {
-                var words = (note.Description ?? "")
-                    .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var words = (note.Description ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 var first10 = string.Join(" ", words.Take(10));
                 if (words.Length > 10)
                 {
@@ -127,17 +137,14 @@ else
                 }
 
                 <div class="col-sm-6 col-md-4 col-lg-3 mb-3">
-                    <div class="card h-100" style="cursor:pointer;"
-                         onclick="window.location='@Url.Action("View", "Notes", new { id = note.Id })'">
+                    <div class="card h-100" style="cursor:pointer;" onclick="window.location='@Url.Action("View", "Notes", new { id = note.Id })'">
                         <div class="card-body d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h5 class="card-title mb-0">@note.Title</h5>
                                 <form asp-action="ToggleFavorite" method="post" class="ms-2">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@note.Id" />
-                                    <button type="submit" class="btn btn-link p-0 border-0"
-                                            title="Favorilere ekle/kaldır"
-                                            onclick="event.stopPropagation();">
+                                    <button type="submit" class="btn btn-link p-0 border-0" title="Favorilere ekle veya kaldir" onclick="event.stopPropagation();">
                                         <i class="@(note.IsFavorite ? "fas" : "far") fa-star text-warning"></i>
                                     </button>
                                 </form>
@@ -163,32 +170,33 @@ else
             const btn = document.getElementById("datePickerBtn");
             const hiddenPicker = document.getElementById("flatpickr-hidden");
 
+            if (!startDateInput || !endDateInput || !form || !btn || !hiddenPicker) {
+                return;
+            }
+
             const fp = flatpickr(hiddenPicker, {
                 mode: "range",
                 dateFormat: "Y-m-d",
                 locale: "tr",
                 defaultDate: [startDateInput.value, endDateInput.value].filter(d => d),
-                positionElement: btn, // Position relative to the button
+                positionElement: btn,
                 onClose: function (selectedDates, dateStr, instance) {
                     if (selectedDates.length > 0) {
                         if (selectedDates.length === 2) {
                             startDateInput.value = instance.formatDate(selectedDates[0], "Y-m-d");
                             endDateInput.value = instance.formatDate(selectedDates[1], "Y-m-d");
                             form.submit();
-                        } 
+                        }
                         else if (selectedDates.length === 1) {
-                             startDateInput.value = instance.formatDate(selectedDates[0], "Y-m-d");
-                             endDateInput.value = instance.formatDate(selectedDates[0], "Y-m-d");
-                             // Wait for user to potentially pick range? 
-                             // If they only want one day, they click away.
-                             // If they click away, onClose fires, we submit.
-                             form.submit();
+                            startDateInput.value = instance.formatDate(selectedDates[0], "Y-m-d");
+                            endDateInput.value = instance.formatDate(selectedDates[0], "Y-m-d");
+                            form.submit();
                         }
                     }
                 }
             });
 
-            btn.addEventListener("click", function() {
+            btn.addEventListener("click", function () {
                 fp.toggle();
             });
         });
